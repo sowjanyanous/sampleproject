@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "Resources": [
+    {
+      "TargetService": {
+        "Type": "AWS::ECS::Service",
+        "Properties": {
+          "TaskDefinition": "dev-ecs-taskdef",
+          "LoadBalancerInfo": {
+            "ContainerName": "devecscont",
+            "ContainerPort": 80
+          },
+          "PlatformVersion": "LATEST",
+          "ClusterName": "recupe-dev-ecs-backend",
+          "ServiceName": "ecstaskdef-service1"
+        }
+      }
+    }
+  ]
+}
