@@ -1,8 +1,8 @@
-version: 0.1
+version: 0.2
 
 env:
   variables:
-    IMAGE_REPO_NAME: project-nodejs
+    IMAGE_REPO_NAME: nodejs-proj
     AWS_DEFAULT_REGION: us-west-2
     IMAGE_TAG: latest
 
@@ -10,7 +10,7 @@ phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin 136279434049.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_URI=136279434049.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
       - echo $REPOSITORY_URI
   build:
