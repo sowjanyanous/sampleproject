@@ -6,7 +6,7 @@ const PORT = 80;
     res.send('Hello from Node.js ECS CI/CD Test! for test');
 });  */
 
-app.get(['/nodejs', '/nodejs/*'], (req, res) => {
+app.get(['/nodejs*', '/nodejs/*'], (req, res) => {
     res.send('Hello from Node.js ECS CI/CD Test! for test');
 });
 
