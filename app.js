@@ -8,7 +8,7 @@ app.get('/', (req, res) => {
 
 /*
 app.get(['/nodejs*', '/nodejs/*'], (req, res) => {
-    res.send('Hello from Node.js ECS CI/CD Test! for test22');
+    res.send('Hello from Node.js ECS CI/CD Test! for test222');
 });
 */
 
