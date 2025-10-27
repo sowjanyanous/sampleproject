@@ -16,16 +16,15 @@ phases:
     commands:
       - echo Building Docker image...
       - docker build -t $IMAGE_REPO_NAME .
-      - docker tag $IMAGE_REPO_NAME:latest $REPOSITORY_URI:latest
 
   post_build:
     commands:
-      - echo Pushing Docker image...
-      - docker push $REPOSITORY_URI:latest
-      - echo Writing imagedefinitions.json...
-      - printf '[{"name":"nodejs-proj","imageUri":"%s"}]' "$REPOSITORY_URI:latest" > imagedefinitions.json
-      - cat imagedefinitions.json
+      - echo Tagging & pushing Docker image...
+      - IMAGE_TAG=${CODEBUILD_BUILD_NUMBER}
+      - docker tag $IMAGE_REPO_NAME:latest $REPOSITORY_URI:$IMAGE_TAG
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo "Image successfully pushed: $REPOSITORY_URI:$IMAGE_TAG"
+      - printf '[{"name":"nodejs-proj","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
 
 artifacts:
-  files:
-    - imagedefinitions.json
+  files: imagedefinitions.json
