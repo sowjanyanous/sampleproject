@@ -5,14 +5,13 @@ env:
     IMAGE_REPO_NAME: nodejs-proj
     AWS_DEFAULT_REGION: us-west-2
     REPOSITORY_URI: 136279434049.dkr.ecr.us-west-2.amazonaws.com/nodejs-proj
+    IMAGE_TAG: latest
 
 phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
-      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - echo "Image tag will be: $IMAGE_TAG"
 
   build:
     commands:
@@ -22,6 +21,12 @@ phases:
 
   post_build:
     commands:
-      - echo Pushing the Docker image...
+      - echo Pushing the Docker image to ECR...
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - echo "Image successfully pushed: $REPOSITORY_URI:$IMAGE_TAG"
+      - echo Writing image definitions file...
+      - printf '[{"name":"nodejs-proj","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - echo Build completed on `date`
+
+artifacts:
+  files:
+    - imagedefinitions.json
