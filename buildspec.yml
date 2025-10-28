@@ -5,7 +5,7 @@ env:
     IMAGE_REPO_NAME: nodejs-proj
     AWS_DEFAULT_REGION: us-west-2
     REPOSITORY_URI: 136279434049.dkr.ecr.us-west-2.amazonaws.com/nodejs-proj
-    IMAGE_TAG: latest
+    IMAGE_TAG: build-${CODEBUILD_BUILD_NUMBER}
 
 phases:
   pre_build:
