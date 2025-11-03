@@ -8,17 +8,11 @@ phases:
   pre_build:
     commands:
       - echo "=== Pre-Build Phase ==="
-      - echo "Verifying environment..."
       - echo "AWS region: $AWS_DEFAULT_REGION"
       - echo "Repository URI: $REPOSITORY_URI"
-
-      # Verify REPOSITORY_URI is defined
-      - if [ -z "$REPOSITORY_URI" ]; then echo "ERROR: REPOSITORY_URI is not set. Please define it in CodeBuild environment variables."; exit 1; fi
-
+      - if [ -z "$REPOSITORY_URI" ]; then echo "ERROR: REPOSITORY_URI not set"; exit 1; fi
       - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
-
-      - echo "Determining image tag..."
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:-latest}
       - echo "Image tag will be: $IMAGE_TAG"
@@ -26,20 +20,15 @@ phases:
   build:
     commands:
       - echo "=== Build Phase ==="
-      - echo "Building Docker image..."
       - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
-      - echo "Tagging image as latest..."
       - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
 
   post_build:
     commands:
       - echo "=== Post-Build Phase ==="
-      - echo "Pushing Docker image to ECR..."
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - docker push $REPOSITORY_URI:latest
-      - echo "Generating imagedefinitions.json for ECS deployment..."
       - printf '[{"name":"app","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
-      - echo "imagedefinitions.json content:"
       - cat imagedefinitions.json
 
 artifacts:
