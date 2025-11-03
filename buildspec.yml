@@ -2,7 +2,6 @@ version: 0.2
 
 env:
   variables:
-    # fallback tag if commit hash not available
     IMAGE_TAG: latest
 
 phases:
@@ -11,11 +10,17 @@ phases:
       - echo "=== PRE BUILD ==="
       - echo "AWS region: $AWS_DEFAULT_REGION"
       - echo "REPOSITORY_URI: $REPOSITORY_URI"
-      - if [ -z "$REPOSITORY_URI" ]; then echo "ERROR: REPOSITORY_URI is not set. Ensure CodeBuild env var or Terraform passes it."; exit 1; fi
+      - |
+        if [ -z "$REPOSITORY_URI" ]; then
+          echo "ERROR: REPOSITORY_URI is not set. Ensure Terraform or CodeBuild passes it."
+          exit 1
+        fi
       - REGISTRY=$(echo $REPOSITORY_URI | cut -d'/' -f1)
       - echo "ECR registry: $REGISTRY"
       - echo "Logging in to ECR..."
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY
+      - |
+        aws ecr get-login-password --region $AWS_DEFAULT_REGION | \
+        docker login --username AWS --password-stdin $REGISTRY
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:-$IMAGE_TAG}
       - echo "Using image tag: $IMAGE_TAG"
