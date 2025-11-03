@@ -12,12 +12,8 @@ phases:
       - echo "AWS region: $AWS_DEFAULT_REGION"
       - echo "Repository URI: $REPOSITORY_URI"
 
-      # Check if REPOSITORY_URI is set
-      - |
-        if [ -z "$REPOSITORY_URI" ]; then
-          echo "ERROR: REPOSITORY_URI is not set. Please define it in CodeBuild environment variables."
-          exit 1
-        fi
+      # Verify REPOSITORY_URI is defined
+      - if [ -z "$REPOSITORY_URI" ]; then echo "ERROR: REPOSITORY_URI is not set. Please define it in CodeBuild environment variables."; exit 1; fi
 
       - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
@@ -42,3 +38,10 @@ phases:
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - docker push $REPOSITORY_URI:latest
       - echo "Generating imagedefinitions.json for ECS deployment..."
+      - printf '[{"name":"app","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+      - echo "imagedefinitions.json content:"
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
