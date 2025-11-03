@@ -4,8 +4,8 @@ version: 0.2
 
 env:
   variables:
-   // IMAGE_REPO_NAME: nodejs-proj
-    IMAGE_REPO_NAME: terraform-test-dev-repo
+    IMAGE_REPO_NAME: nodejs-proj
+    //IMAGE_REPO_NAME: terraform-test-dev-repo
     AWS_DEFAULT_REGION: us-west-2
     IMAGE_TAG: latest
 
