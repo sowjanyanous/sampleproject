@@ -2,57 +2,40 @@ version: 0.2
 
 env:
   variables:
-    AWS_DEFAULT_REGION: "us-west-2"            # or use CodeBuild default
-    IMAGE_REPO_NAME: "terraform-test-dev-repo"      # 🔹 Replace with your actual ECR repo name
-    APP_NAME: "app-container"                  # 🔹 Must match your ECS container name
-    AWS_ACCOUNT_ID: "136279434049"             # 🔹 Replace with your AWS account ID
+    AWS_DEFAULT_REGION: "us-west-2"                 # Match your Terraform region
+    IMAGE_REPO_NAME: "terraform-test-dev-repo"      # Your ECR repo name
+    APP_NAME: "app-container"                       # Must match container name in ECS task
+  # AWS automatically injects CODEBUILD_RESOLVED_SOURCE_VERSION and AWS_ACCOUNT_ID during runtime
 
 phases:
   pre_build:
     commands:
+      - echo "Starting pre-build phase..."
       - echo "Logging in to Amazon ECR..."
+      - aws --version
+      - echo "Fetching AWS account ID..."
+      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+      - echo "AWS Account ID: $AWS_ACCOUNT_ID"
+      - echo "Logging in to ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-
-      - echo "Setting up image tags..."
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-8)
-      - BRANCH_NAME=$(echo $CODEBUILD_WEBHOOK_HEAD_REF | sed 's/refs\/heads\///')
-      - BRANCH_NAME_SANITIZED=$(echo $BRANCH_NAME | sed 's/[^a-zA-Z0-9]/-/g')
-      - TIMESTAMP=$(date +%Y%m%d%H%M%S)
-      - BUILD_ID=$(echo $CODEBUILD_BUILD_ID | cut -d':' -f2)
-      - if [ -z "$BRANCH_NAME" ] || [ "$BRANCH_NAME" = "null" ]; then BRANCH_NAME_SANITIZED="main"; fi
-      - IMAGE_TAG="${BRANCH_NAME_SANITIZED}-${COMMIT_HASH}-${TIMESTAMP}"
-      - echo "✅ Image tag set to: $IMAGE_TAG"
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - echo "Repository URI: $REPOSITORY_URI"
 
   build:
     commands:
-      - echo "Building Docker image..."
-      # - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
-      - docker build -t terraform-test-dev-repo .
-
-      - echo "Tagging images for ECR..."
-      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$COMMIT_HASH
-
-      - if [ "$BRANCH_NAME_SANITIZED" = "main" ]; then
-          docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest &&
-          echo "Also tagged as latest (main branch)";
-        fi
+      - echo "Building the Docker image..."
+      - docker build -t $IMAGE_REPO_NAME .
+      - docker tag $IMAGE_REPO_NAME:latest $REPOSITORY_URI:latest
+      - echo "Docker image built and tagged successfully."
 
   post_build:
     commands:
-      - echo "Pushing Docker images to ECR..."
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$COMMIT_HASH
-
-      - if [ "$BRANCH_NAME_SANITIZED" = "main" ]; then
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest;
-        fi
-
+      - echo "Pushing image to Amazon ECR..."
+      - docker push $REPOSITORY_URI:latest
       - echo "Creating imagedefinitions.json for ECS deployment..."
-      - printf '[{"name":"%s","imageUri":"%s"}]' $APP_NAME $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json
-
-      - echo "✅ Build completed successfully."
-      - echo "Image pushed: $IMAGE_REPO_NAME:$IMAGE_TAG"
+      - printf '[{"name":"%s","imageUri":"%s"}]' $APP_NAME $REPOSITORY_URI:latest > imagedefinitions.json
+      - echo "imagedefinitions.json content:"
+      - cat imagedefinitions.json
 
 artifacts:
   files:
