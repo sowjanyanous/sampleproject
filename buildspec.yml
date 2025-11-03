@@ -16,4 +16,30 @@ phases:
       - echo "ECR registry: $REGISTRY"
       - echo "Logging in to ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY
-      - COMMIT_HAS_
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:-$IMAGE_TAG}
+      - echo "Using image tag: $IMAGE_TAG"
+
+  build:
+    commands:
+      - echo "=== BUILD ==="
+      - echo "Building Docker image: $REPOSITORY_URI:$IMAGE_TAG"
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+      - echo "Also tagging image as latest"
+      - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
+
+  post_build:
+    commands:
+      - echo "=== POST BUILD ==="
+      - echo "Pushing image: $REPOSITORY_URI:$IMAGE_TAG"
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo "Pushing image: $REPOSITORY_URI:latest"
+      - docker push $REPOSITORY_URI:latest
+      - echo "Writing imagedefinitions.json for ECS"
+      - printf '[{"name":"app","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+      - echo "imagedefinitions.json content:"
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
