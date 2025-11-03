@@ -2,57 +2,34 @@ version: 0.2
 
 env:
   variables:
+    AWS_DEFAULT_REGION: us-west-2
     IMAGE_TAG: latest
 
 phases:
   pre_build:
     commands:
-      - echo "=== PRE-BUILD PHASE STARTED ==="
+      - echo "=== PRE-BUILD PHASE ==="
       - echo "AWS Region: $AWS_DEFAULT_REGION"
-      - echo "Repository URI: $REPOSITORY_URI"
-      - echo "ECS Cluster: $ECS_CLUSTER"
-      - echo "ECS Service: $ECS_SERVICE"
-
-      - echo "Checking environment variables..."
-      - if [ -z "$REPOSITORY_URI" ] || [ -z "$AWS_DEFAULT_REGION" ]; then echo "❌ Missing REPOSITORY_URI or AWS_DEFAULT_REGION"; exit 1; fi
-
-      - REGISTRY=$(echo $REPOSITORY_URI | cut -d'/' -f1)
-      - echo "ECR Registry: $REGISTRY"
-
       - echo "Logging in to Amazon ECR..."
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY
-
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=${COMMIT_HASH:-$IMAGE_TAG}
-      - echo "Using image tag: $IMAGE_TAG"
+      - REGISTRY_URI=$(echo $REPOSITORY_URI | cut -d'/' -f1)
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY_URI
 
   build:
     commands:
-      - echo "=== BUILD PHASE STARTED ==="
-      - echo "Building Docker image $REPOSITORY_URI:$IMAGE_TAG"
+      - echo "=== BUILD PHASE ==="
+      - echo "Building Docker image..."
       - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
       - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
-      - echo "Docker images built successfully ✅"
-      - docker images
 
   post_build:
     commands:
-      - echo "=== POST-BUILD PHASE STARTED ==="
-      - echo "Pushing image to ECR..."
+      - echo "=== POST-BUILD PHASE ==="
+      - echo "Pushing Docker images..."
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - docker push $REPOSITORY_URI:latest
-
-      - echo "Creating imagedefinitions.json..."
-      - echo "[{\"name\":\"app\",\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\"}]" > imagedefinitions.json
+      - echo "Generating imagedefinitions.json..."
+      - printf '[{"name":"app","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
       - cat imagedefinitions.json
-
-      - echo "Deploying new image to ECS (if configured)..."
-      - if [ -n "$ECS_CLUSTER" ] && [ -n "$ECS_SERVICE" ]; then \
-          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_DEFAULT_REGION; \
-          echo "✅ ECS deployment triggered."; \
-        else \
-          echo "⚠️ ECS_CLUSTER or ECS_SERVICE not set, skipping deployment."; \
-        fi
 
 artifacts:
   files:
