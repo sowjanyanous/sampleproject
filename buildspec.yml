@@ -10,15 +10,9 @@ phases:
       - echo "=== Pre-Build Phase ==="
       - echo "AWS region: $AWS_DEFAULT_REGION"
       - echo "Repository URI: $REPOSITORY_URI"
-      - |
-        if [ -z "$REPOSITORY_URI" ]; then 
-          echo "ERROR: REPOSITORY_URI not set"; 
-          exit 1; 
-        fi
+      - if [ -z "$REPOSITORY_URI" ]; then echo "ERROR: REPOSITORY_URI not set"; exit 1; fi
       - echo "Logging in to Amazon ECR..."
-      - |
-        aws ecr get-login-password --region $AWS_DEFAULT_REGION | \
-        docker login --username AWS --password-stdin $REPOSITORY_URI
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:-latest}
       - echo "Image tag will be: $IMAGE_TAG"
