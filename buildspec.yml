@@ -7,43 +7,52 @@ env:
 phases:
   pre_build:
     commands:
-      - echo "=== PRE BUILD ==="
-      - echo "AWS region: $AWS_DEFAULT_REGION"
-      - echo "REPOSITORY_URI: $REPOSITORY_URI"
-      - |
-        if [ -z "$REPOSITORY_URI" ]; then
-          echo "ERROR: REPOSITORY_URI is not set. Ensure Terraform or CodeBuild passes it."
-          exit 1
-        fi
+      - echo "=== PRE-BUILD PHASE STARTED ==="
+      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - echo "Repository URI: $REPOSITORY_URI"
+      - echo "ECS Cluster: $ECS_CLUSTER"
+      - echo "ECS Service: $ECS_SERVICE"
+
+      - echo "Checking environment variables..."
+      - if [ -z "$REPOSITORY_URI" ] || [ -z "$AWS_DEFAULT_REGION" ]; then echo "❌ Missing REPOSITORY_URI or AWS_DEFAULT_REGION"; exit 1; fi
+
       - REGISTRY=$(echo $REPOSITORY_URI | cut -d'/' -f1)
-      - echo "ECR registry: $REGISTRY"
-      - echo "Logging in to ECR..."
-      - |
-        aws ecr get-login-password --region $AWS_DEFAULT_REGION | \
-        docker login --username AWS --password-stdin $REGISTRY
+      - echo "ECR Registry: $REGISTRY"
+
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY
+
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:-$IMAGE_TAG}
       - echo "Using image tag: $IMAGE_TAG"
 
   build:
     commands:
-      - echo "=== BUILD ==="
-      - echo "Building Docker image: $REPOSITORY_URI:$IMAGE_TAG"
+      - echo "=== BUILD PHASE STARTED ==="
+      - echo "Building Docker image $REPOSITORY_URI:$IMAGE_TAG"
       - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
-      - echo "Also tagging image as latest"
       - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
+      - echo "Docker images built successfully ✅"
+      - docker images
 
   post_build:
     commands:
-      - echo "=== POST BUILD ==="
-      - echo "Pushing image: $REPOSITORY_URI:$IMAGE_TAG"
+      - echo "=== POST-BUILD PHASE STARTED ==="
+      - echo "Pushing image to ECR..."
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - echo "Pushing image: $REPOSITORY_URI:latest"
       - docker push $REPOSITORY_URI:latest
-      - echo "Writing imagedefinitions.json for ECS"
-      - printf '[{"name":"app","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
-      - echo "imagedefinitions.json content:"
+
+      - echo "Creating imagedefinitions.json..."
+      - echo "[{\"name\":\"app\",\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\"}]" > imagedefinitions.json
       - cat imagedefinitions.json
+
+      - echo "Deploying new image to ECS (if configured)..."
+      - if [ -n "$ECS_CLUSTER" ] && [ -n "$ECS_SERVICE" ]; then \
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_DEFAULT_REGION; \
+          echo "✅ ECS deployment triggered."; \
+        else \
+          echo "⚠️ ECS_CLUSTER or ECS_SERVICE not set, skipping deployment."; \
+        fi
 
 artifacts:
   files:
