@@ -5,6 +5,7 @@ env:
     AWS_DEFAULT_REGION: "us-west-2"                 # Match your Terraform region
     IMAGE_REPO_NAME: "terraform-test-dev-repo"      # Your ECR repo name
     APP_NAME: "app-container"                       # Must match container name in ECS task
+    AWS_ACCOUNT_ID: "136279434049"
   # AWS automatically injects CODEBUILD_RESOLVED_SOURCE_VERSION and AWS_ACCOUNT_ID during runtime
 
 phases:
@@ -14,8 +15,8 @@ phases:
       - echo "Logging in to Amazon ECR..."
       - aws --version
       - echo "Fetching AWS account ID..."
-      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-      - echo "AWS Account ID: $AWS_ACCOUNT_ID"
+     # - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+     # - echo "AWS Account ID: $AWS_ACCOUNT_ID"
       - echo "Logging in to ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
