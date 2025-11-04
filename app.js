@@ -3,7 +3,7 @@ const app = express();
 const PORT = 80;
 
 app.get('/', (req, res) => {
-    res.send('Hello from Node.js ECS CI/CD Test! testt66');
+    res.send('Hello from Node.js ECS CI/CD Test! test77');
 });  
 
 /*
